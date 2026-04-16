@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jason Shouts Siddartha — Keyboard Edition</title>
+<style>
+  :root {
+    --bg1: #10182a;
+    --bg2: #1d3154;
+    --panel: rgba(10, 18, 32, 0.82);
+    --line: rgba(255,255,255,0.10);
+    --text: #eef6ff;
+    --muted: rgba(255,255,255,0.72);
+    --accent: #8fdcff;
+    --gold: #ffd66e;
+    --good: #8ef0b1;
+    --bad: #ff9393;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, Helvetica, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(circle at 20% 15%, rgba(143,220,255,0.16), transparent 22%),
+      radial-gradient(circle at 82% 10%, rgba(255,214,110,0.12), transparent 20%),
+      linear-gradient(180deg, var(--bg2), var(--bg1));
+    overflow: hidden;
+  }
+  .wrap { width: min(1120px, 100vw); padding: 18px; }
+  .topbar {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 16px 18px; backdrop-filter: blur(10px); box-shadow: 0 24px 70px rgba(0,0,0,0.30);
+  }
+  .title { font-size: 30px; font-weight: 700; }
+  .subtitle { margin-top: 6px; font-size: 14px; color: var(--muted); max-width: 680px; line-height: 1.45; }
+  .hud {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  }
+  .stat {
+    min-width: 112px; text-align: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 10px 12px;
+  }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+  .value { margin-top: 4px; font-size: 22px; font-weight: 700; }
+  .shell { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 18px; box-shadow: 0 24px 80px rgba(0,0,0,0.30);
+  }
+  canvas {
+    width: 100%; height: auto; display: block; border-radius: 20px; border: 1px solid rgba(255,255,255,0.08); background: linear-gradient(180deg, #91d7ff 0%, #c9ecff 45%, #6bc47a 45%, #4f975d 100%);
+  }
+  .section-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .section-copy { font-size: 14px; color: var(--muted); line-height: 1.45; margin-bottom: 12px; }
+  .meter-label {
+    display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 6px;
+  }
+  .meter {
+    height: 14px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 14px;
+  }
+  .fill { height: 100%; border-radius: 999px; transition: width 0.08s linear; }
+  .rhythm { background: linear-gradient(90deg, var(--accent), #d3f1ff); }
+  .power { background: linear-gradient(90deg, var(--gold), #ffe7a3); }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  button.action {
+    border: none; border-radius: 14px; padding: 12px 16px; font-size: 15px; font-weight: 700; cursor: pointer; color: #09121f; background: linear-gradient(180deg, #a9edff, #8fdcff); box-shadow: 0 10px 24px rgba(143,220,255,0.22);
+  }
+  button.alt { background: linear-gradient(180deg, #ffe39a, #ffd66e); box-shadow: 0 10px 24px rgba(255,214,110,0.20); }
+  button.ghost { color: var(--text); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); box-shadow: none; }
+  .log {
+    margin-top: 14px; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); min-height: 88px; line-height: 1.5; font-size: 14px; color: var(--muted);
+  }
+  .big-word {
+    margin-top: 12px; font-size: clamp(28px, 4vw, 54px); font-weight: 800; text-align: center; letter-spacing: 2px; color: var(--gold); text-shadow: 0 0 18px rgba(255,214,110,0.22);
+  }
+  .key-seq {
+    margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+  }
+  .key {
+    min-width: 46px; padding: 12px 10px; text-align: center; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); font-weight: 700;
+  }
+  .key.active { background: rgba(255,214,110,0.14); border-color: rgba(255,214,110,0.34); color: var(--gold); transform: translateY(-1px); }
+  .key.done { background: rgba(142,240,177,0.12); border-color: rgba(142,240,177,0.34); color: var(--good); }
+  .warn { color: var(--bad); font-size: 13px; line-height: 1.45; margin-top: 10px; }
+  @media (max-width: 960px) { .shell { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="panel">
+      <div class="title">Jason Shouts Siddartha — Keyboard Edition</div>
+      <div class="subtitle">Creative workaround: instead of using a microphone, you simulate shouting by hammering the letters in <strong>SIDDARTHA</strong> as fast and accurately as possible. Better rhythm and fewer mistakes mean louder “shouts” and more points.</div>
+    </div>
+    <div class="hud panel">
+      <div class="stat"><div class="label">Score</div><div class="value" id="scoreValue">0</div></div>
+      <div class="stat"><div class="label">Best</div><div class="value" id="bestValue">0</div></div>
+      <div class="stat"><div class="label">Time</div><div class="value" id="timeValue">20.0</div></div>
+      <div class="stat"><div class="label">Combo</div><div class="value" id="comboValue">0</div></div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="card">
+      <div class="section-title">Arena</div>
+      <canvas id="game" width="640" height="480"></canvas>
+      <div class="big-word">S I D D A R T H A</div>
+      <div class="key-seq" id="keySeq"></div>
+      <div class="log" id="logBox">Press Start Round. Then type SIDDARTHA repeatedly, in order, as fast as you can. Fast clean sequences count as louder shouts.</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Shout Engine</div>
+      <div class="section-copy">This version converts keyboard speed into “shout power.” You are rewarded for rhythm, accuracy, and keeping the chain going. Spamming random keys hurts your power.</div>
+
+      <div class="meter-label"><span>Rhythm</span><span id="rhythmText">0%</span></div>
+      <div class="meter"><div class="fill rhythm" id="rhythmFill" style="width:0%"></div></div>
+
+      <div class="meter-label"><span>Shout power</span><span id="powerText">0x</span></div>
+      <div class="meter"><div class="fill power" id="powerFill" style="width:0%"></div></div>
+
+      <div class="actions">
+        <button class="action alt" id="startBtn">Start Round</button>
+        <button class="action" id="practiceBtn">Practice Mode</button>
+        <button class="action ghost" id="resetBtn">Reset Score</button>
+      </div>
+
+      <div class="warn">Random mashing is a bad strategy. The game checks sequence order, so actual “SIDDARTHA” rhythm beats pure speed.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('scoreValue');
+const bestEl = document.getElementById('bestValue');
+const timeEl = document.getElementById('timeValue');
+const comboEl = document.getElementById('comboValue');
+const rhythmFill = document.getElementById('rhythmFill');
+const powerFill = document.getElementById('powerFill');
+const rhythmText = document.getElementById('rhythmText');
+const powerText = document.getElementById('powerText');
+const startBtn = document.getElementById('startBtn');
+const practiceBtn = document.getElementById('practiceBtn');
+const resetBtn = document.getElementById('resetBtn');
+const logBox = document.getElementById('logBox');
+const keySeq = document.getElementById('keySeq');
+
+const target = 'SIDDARTHA';
+let seqIndex = 0;
+let score = 0;
+let best = Number(localStorage.getItem('jasonSiddarthaBestKeyboard') || 0);
+let combo = 0;
+let roundActive = false;
+let practiceMode = false;
+let roundTime = 20;
+let rhythm = 0;
+let shoutPower = 0;
+let lastKeyTime = 0;
+let peakFlash = 0;
+let jasonYell = 0;
+let goodHits = 0;
+let badHits = 0;
+
+bestEl.textContent = best;
+
+function setLog(text) { logBox.textContent = text; }
+
+function renderKeySeq() {
+  keySeq.innerHTML = '';
+  target.split('').forEach((char, i) => {
+    const div = document.createElement('div');
+    div.className = 'key' + (i < seqIndex ? ' done' : '') + (i === seqIndex ? ' active' : '');
+    div.textContent = char;
+    keySeq.appendChild(div);
+  });
+}
+
+function startRound() {
+  roundActive = true;
+  practiceMode = false;
+  roundTime = 20;
+  combo = 0;
+  seqIndex = 0;
+  goodHits = 0;
+  badHits = 0;
+  rhythm = 0;
+  shoutPower = 0;
+  renderKeySeq();
+  setLog('Round started. Type SIDDARTHA in order, fast and clean.');
+}
+
+function startPractice() {
+  roundActive = true;
+  practiceMode = true;
+  roundTime = 999;
+  combo = 0;
+  seqIndex = 0;
+  goodHits = 0;
+  badHits = 0;
+  rhythm = 0;
+  shoutPower = 0;
+  renderKeySeq();
+  setLog('Practice mode: no timer pressure. Learn the rhythm first.');
+}
+
+function resetScore() {
+  score = 0;
+  combo = 0;
+  roundActive = false;
+  practiceMode = false;
+  roundTime = 20;
+  seqIndex = 0;
+  rhythm = 0;
+  shoutPower = 0;
+  goodHits = 0;
+  badHits = 0;
+  scoreEl.textContent = '0';
+  comboEl.textContent = '0';
+  timeEl.textContent = '20.0';
+  renderKeySeq();
+  setLog('Score reset. Jason is ready to shout again.');
+}
+
+function registerKey(key) {
+  if (!roundActive) return;
+  key = key.toUpperCase();
+  const expected = target[seqIndex];
+  const now = performance.now();
+  const delta = lastKeyTime ? now - lastKeyTime : 220;
+  lastKeyTime = now;
+
+  if (key === expected) {
+    goodHits += 1;
+    combo += 1;
+    const speedFactor = Math.max(0, Math.min(1, (320 - delta) / 220));
+    rhythm = Math.max(0.12, Math.min(1, 0.45 * speedFactor + Math.min(combo / 18, 0.55)));
+    shoutPower = Math.min(1, rhythm * 0.65 + Math.min(combo / 28, 0.35));
+    const multiplier = 1 + Math.floor(shoutPower * 9);
+    score += 4 + multiplier + Math.floor(combo * 0.35);
+    seqIndex += 1;
+    peakFlash = 1;
+    jasonYell = Math.min(1, shoutPower * 1.1);
+
+    if (seqIndex >= target.length) {
+      score += 18 + Math.floor(combo * 0.4);
+      seqIndex = 0;
+      setLog('Full SIDDARTHA chain completed. Jason absolutely bellows it.');
+    }
+  } else {
+    badHits += 1;
+    combo = Math.max(0, combo - 3);
+    rhythm *= 0.65;
+    shoutPower *= 0.55;
+    seqIndex = key === target[0] ? 1 : 0;
+    setLog(`Wrong key. Jason loses the rhythm. Expected ${expected}.`);
+  }
+
+  if (score > best) {
+    best = score;
+    localStorage.setItem('jasonSiddarthaBestKeyboard', String(best));
+  }
+
+  renderKeySeq();
+}
+
+function updateGame() {
+  if (roundActive && !practiceMode) {
+    roundTime -= 1 / 60;
+    if (roundTime <= 0) {
+      roundTime = 0;
+      roundActive = false;
+      const accuracy = goodHits + badHits === 0 ? 0 : Math.round((goodHits / (goodHits + badHits)) * 100);
+      setLog(`Round over. Score: ${score}. Accuracy: ${accuracy}%. ${score >= best ? 'New best run.' : 'Cleaner rhythm will score higher.'}`);
+    }
+  }
+
+  rhythm *= 0.988;
+  shoutPower *= 0.986;
+  peakFlash *= 0.92;
+  jasonYell *= 0.93;
+
+  const rhythmPct = Math.round(rhythm * 100);
+  const powerPct = Math.round(shoutPower * 100);
+  rhythmFill.style.width = rhythmPct + '%';
+  powerFill.style.width = powerPct + '%';
+  rhythmText.textContent = rhythmPct + '%';
+  powerText.textContent = (1 + Math.floor(shoutPower * 9)) + 'x';
+
+  scoreEl.textContent = score;
+  bestEl.textContent = best;
+  comboEl.textContent = combo;
+  timeEl.textContent = practiceMode ? '∞' : roundTime.toFixed(1);
+}
+
+function drawBackground() {
+  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  sky.addColorStop(0, '#99dcff');
+  sky.addColorStop(1, '#d9f3ff');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#63bf73';
+  ctx.fillRect(0, 280, canvas.width, 200);
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.beginPath(); ctx.arc(520, 70, 34, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(120, 90, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(150, 90, 22, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawJason() {
+  const x = 320;
+  const y = 320;
+  const bounce = Math.sin(Date.now() * 0.01) * 2 + jasonYell * 8;
+  const mouth = 8 + jasonYell * 18;
+
+  ctx.save();
+  ctx.translate(x, y + bounce);
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath(); ctx.ellipse(0, 74, 38, 12, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.strokeStyle = '#eef7ff';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(0, -38, 26, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(0, 46); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(-28, 28 - jasonYell * 8); ctx.moveTo(0, 2); ctx.lineTo(28, 28 - jasonYell * 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 46); ctx.lineTo(-24, 86); ctx.moveTo(0, 46); ctx.lineTo(24, 86); ctx.stroke();
+
+  ctx.fillStyle = '#ff9b9b';
+  ctx.beginPath(); ctx.ellipse(0, -18, 10, mouth, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,214,110,' + (0.3 + peakFlash * 0.4) + ')';
+  ctx.font = '900 40px Arial';
+  ctx.textAlign = 'center';
+  if (roundActive && shoutPower > 0.08) {
+    ctx.fillText('SIDDARTHA!', 0, -100 - jasonYell * 20);
+  }
+  ctx.restore();
+}
+
+function drawBursts() {
+  if (shoutPower < 0.08) return;
+  ctx.save();
+  ctx.translate(320, 280);
+  ctx.strokeStyle = `rgba(143,220,255,${0.15 + shoutPower * 0.4})`;
+  ctx.lineWidth = 4;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(0, 0, 40 + i * 26 + shoutPower * 30, -0.6, 0.6);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function draw() {
+  drawBackground();
+  drawBursts();
+  drawJason();
+
+  if (!roundActive) {
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 34px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Press Start Round', canvas.width / 2, 110);
+  }
+}
+
+window.addEventListener('keydown', (e) => {
+  const key = e.key.toUpperCase();
+  if (key.length === 1 && /[A-Z]/.test(key)) {
+    registerKey(key);
+  }
+});
+
+startBtn.addEventListener('click', startRound);
+practiceBtn.addEventListener('click', startPractice);
+resetBtn.addEventListener('click', resetScore);
+
+function loop() {
+  updateGame();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+renderKeySeq();
+loop();
+</script>
+</body>
+</html>
