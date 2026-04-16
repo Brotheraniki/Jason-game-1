@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liam and the Lost Lola — Manila Adventure</title>
+<style>
+  :root {
+    --bg1: #0c1830;
+    --bg2: #17345e;
+    --panel: rgba(10, 18, 32, 0.80);
+    --line: rgba(255,255,255,0.10);
+    --text: #eef6ff;
+    --muted: rgba(255,255,255,0.72);
+    --gold: #ffd66e;
+    --green: #8ef0b1;
+    --blue: #8fdcff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, Helvetica, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(circle at 20% 15%, rgba(143,220,255,0.16), transparent 22%),
+      radial-gradient(circle at 82% 10%, rgba(255,214,110,0.12), transparent 20%),
+      linear-gradient(180deg, var(--bg2), var(--bg1));
+    overflow: hidden;
+  }
+  .wrap { width: min(1240px, 100vw); padding: 18px; }
+  .topbar {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 16px 18px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.30);
+  }
+  .title { font-size: 30px; font-weight: 700; }
+  .subtitle { margin-top: 6px; font-size: 14px; color: var(--muted); max-width: 680px; line-height: 1.45; }
+  .hud {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  }
+  .stat {
+    min-width: 110px; text-align: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 10px 12px;
+  }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+  .value { margin-top: 4px; font-size: 22px; font-weight: 700; }
+  .shell { display: grid; grid-template-columns: 300px 1fr 340px; gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 18px; box-shadow: 0 24px 80px rgba(0,0,0,0.30);
+  }
+  .section-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .section-copy { font-size: 14px; color: var(--muted); line-height: 1.45; margin-bottom: 12px; }
+  canvas {
+    width: 100%; height: auto; display: block; border-radius: 22px; border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, #79c7ff 0%, #8ed7ff 34%, #5dbb74 34%, #43945a 100%);
+  }
+  .controls, .inventory, .map-list { display: grid; gap: 10px; margin-top: 12px; }
+  .control-item, .item, .map-node, .travel-btn {
+    padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); color: var(--muted); font-size: 14px; line-height: 1.45;
+  }
+  .item.found, .map-node.active {
+    color: var(--text); border-color: rgba(143,220,255,0.28); background: rgba(143,220,255,0.08);
+  }
+  .travel-btn {
+    cursor: pointer; text-align: left; transition: transform 0.12s ease, border-color 0.12s ease;
+  }
+  .travel-btn:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.16); }
+  .dialogue, .ending {
+    margin-top: 14px; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); min-height: 100px; line-height: 1.5; font-size: 15px;
+  }
+  .speaker {
+    display: inline-block; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); font-weight: 700;
+  }
+  .actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+  button.action {
+    border: none; border-radius: 14px; padding: 12px 16px; font-size: 15px; font-weight: 700; cursor: pointer; color: #09121f; background: linear-gradient(180deg, #a9edff, #8fdcff); box-shadow: 0 10px 24px rgba(143,220,255,0.22);
+  }
+  button.alt { background: linear-gradient(180deg, #ffe39a, #ffd66e); box-shadow: 0 10px 24px rgba(255,214,110,0.20); }
+  button.ghost { color: var(--text); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); box-shadow: none; }
+  .ending { display: none; }
+  .ending.good { color: var(--green); }
+  @media (max-width: 1100px) { .shell { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="panel">
+      <div class="title">Liam and the Lost Lola — Manila Adventure</div>
+      <div class="subtitle">Set in Manila. Liam moves through Quiapo, Binondo, Intramuros, Rizal Park, and Manila Bay, following simple travel links and local clues to find his grandmother quickly instead of getting lost in a maze.</div>
+    </div>
+    <div class="hud panel">
+      <div class="stat"><div class="label">Location</div><div class="value" id="areaValue">Quiapo</div></div>
+      <div class="stat"><div class="label">Clues</div><div class="value" id="cluesValue">0/4</div></div>
+      <div class="stat"><div class="label">Talks</div><div class="value" id="talksValue">0</div></div>
+      <div class="stat"><div class="label">Goal</div><div class="value" id="goalValue">Find Lola</div></div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="card">
+      <div class="section-title">Adventure Notes</div>
+      <div class="section-copy">Walk around each Manila location, talk to people, then use the travel buttons to jump to the next place quickly. This version is about clue-chasing, not getting trapped in awkward navigation.</div>
+      <div class="controls">
+        <div class="control-item"><strong>Move:</strong> WASD or arrow keys</div>
+        <div class="control-item"><strong>Interact:</strong> E or Enter near a person</div>
+        <div class="control-item"><strong>Travel:</strong> Q = previous location, R = next location</div>
+      </div>
+      <div class="section-title" style="margin-top:16px;">Keepsakes</div>
+      <div class="inventory" id="inventory"></div>
+      <div class="actions">
+        <button class="action" id="restartBtn">Restart Adventure</button>
+        <button class="action alt" id="hintBtn">Hint</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">World</div>
+      <canvas id="game" width="650" height="540"></canvas>
+      <div class="dialogue" id="dialogueBox">
+        <div class="speaker">Narrator</div>
+        Liam arrives in Manila with an old family photo and a message that Lola was moving around the city before meeting him.
+      </div>
+      <div class="ending" id="endingBox"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Manila Route</div>
+      <div class="section-copy">Travel is intentionally simple now: press <strong>Q</strong> to go to the previous Manila location and <strong>R</strong> to go to the next one. Each place has one useful lead. Once Liam has all four keepsakes, return to Rizal Park.</div>
+      <div class="map-list" id="mapList"></div>
+      <div class="section-title" style="margin-top:16px;">Fast travel</div>
+      <div class="map-list" id="travelList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const areaValueEl = document.getElementById('areaValue');
+const cluesValueEl = document.getElementById('cluesValue');
+const talksValueEl = document.getElementById('talksValue');
+const goalValueEl = document.getElementById('goalValue');
+const inventoryEl = document.getElementById('inventory');
+const mapListEl = document.getElementById('mapList');
+const travelListEl = document.getElementById('travelList');
+const dialogueBoxEl = document.getElementById('dialogueBox');
+const endingBoxEl = document.getElementById('endingBox');
+const restartBtn = document.getElementById('restartBtn');
+const hintBtn = document.getElementById('hintBtn');
+
+const W = canvas.width;
+const H = canvas.height;
+const playerSpeed = 3.2;
+let keys = {};
+
+const areas = {
+  quiapo: { name: 'Quiapo', color: '#58ad69', description: 'Busy stalls, prayer candles, and too many people who know something.' },
+  binondo: { name: 'Binondo', color: '#50a462', description: 'Food, side streets, and someone who definitely saw Lola.' },
+  intramuros: { name: 'Intramuros', color: '#4b9d5d', description: 'Stone walls, warm air, and a careful memory.' },
+  rizal: { name: 'Rizal Park', color: '#5ab06b', description: 'Open space, old meeting spots, and the likely final reunion.' },
+  bay: { name: 'Manila Bay', color: '#4a9959', description: 'Sunset light, seawall breeze, and one last clue.' }
+};
+
+const travelGraph = {
+  quiapo: ['binondo', 'intramuros'],
+  binondo: ['quiapo', 'intramuros', 'bay'],
+  intramuros: ['quiapo', 'binondo', 'rizal'],
+  rizal: ['intramuros', 'bay'],
+  bay: ['binondo', 'rizal']
+};
+
+const clueDefinitions = {
+  fan: { label: 'Painted pamaypay', text: 'A folding fan with small sampaguita flowers painted on it.' },
+  note: { label: 'Food note', text: 'A note about hopia and where to buy the good kind.' },
+  photo: { label: 'Old family photo', text: 'A worn photo of Liam, Lola, and a bright afternoon in Rizal Park.' },
+  rosary: { label: 'Rosary bracelet', text: 'A wooden bracelet polished smooth by years of use.' }
+};
+
+function initialGame() {
+  return {
+    area: 'quiapo',
+    talks: 0,
+    cluesFound: [],
+    ended: false,
+    hintIndex: 0,
+    player: { x: 100, y: 410, w: 22, h: 30 },
+    npcs: [
+      { id: 'vendor', name: 'Quiapo Vendor', area: 'quiapo', x: 190, y: 280, talked: false, clue: 'fan', text: 'Your Lola bought candles here, then showed me this painted fan. She said she might pass through Binondo next.' },
+      { id: 'baker', name: 'Binondo Baker', area: 'binondo', x: 470, y: 260, talked: false, clue: 'note', text: 'Ah, your Lola asked about hopia. She left this note and said old walls make her nostalgic. Try Intramuros.' },
+      { id: 'guard', name: 'Intramuros Guard', area: 'intramuros', x: 470, y: 170, talked: false, clue: 'rosary', text: 'She was here earlier. Very warm smile. She left this rosary bracelet on the bench and said the park would mean something to you.' },
+      { id: 'photographer', name: 'Bay Photographer', area: 'bay', x: 190, y: 350, talked: false, clue: 'photo', text: 'She looked at the sunset and then this old photo. She said if Liam remembers the family meeting spot, he will know where to go.' },
+      { id: 'guide', name: 'Park Guide', area: 'rizal', x: 505, y: 300, talked: false, clue: null, text: 'The old bandstand area is still a place families choose to meet. If you have enough clues, look carefully there.' }
+    ]
+  };
+}
+
+let game = initialGame();
+
+function setDialogue(speaker, text) {
+  dialogueBoxEl.innerHTML = `<div class="speaker">${speaker}</div>${text}`;
+}
+
+function renderInventory() {
+  inventoryEl.innerHTML = '';
+  Object.keys(clueDefinitions).forEach(id => {
+    const def = clueDefinitions[id];
+    const found = game.cluesFound.includes(id);
+    const div = document.createElement('div');
+    div.className = 'item' + (found ? ' found' : '');
+    div.innerHTML = `<strong>${def.label}</strong><br>${found ? def.text : 'Not found yet.'}`;
+    inventoryEl.appendChild(div);
+  });
+}
+
+function renderMap() {
+  mapListEl.innerHTML = '';
+  Object.entries(areas).forEach(([id, area]) => {
+    const div = document.createElement('div');
+    div.className = 'map-node' + (game.area === id ? ' active' : '');
+    div.innerHTML = `<strong>${area.name}</strong><br>${area.description}`;
+    mapListEl.appendChild(div);
+  });
+}
+
+function renderTravel() {
+  travelListEl.innerHTML = '';
+  travelGraph[game.area].forEach(target => {
+    const btn = document.createElement('button');
+    btn.className = 'travel-btn';
+    btn.innerHTML = `<strong>${areas[target].name}</strong><br>Travel here now`;
+    btn.addEventListener('click', () => travelTo(target));
+    travelListEl.appendChild(btn);
+  });
+
+  if (game.cluesFound.length >= 4 && game.area !== 'rizal') {
+    const btn = document.createElement('button');
+    btn.className = 'travel-btn';
+    btn.innerHTML = `<strong>Rizal Park</strong><br>Return for the final meeting spot`;
+    btn.addEventListener('click', () => travelTo('rizal'));
+    travelListEl.appendChild(btn);
+  }
+}
+
+function updateHud() {
+  areaValueEl.textContent = areas[game.area].name;
+  cluesValueEl.textContent = `${game.cluesFound.length}/4`;
+  talksValueEl.textContent = game.talks;
+  goalValueEl.textContent = game.cluesFound.length >= 4 ? 'Go to Rizal Park' : 'Find Lola';
+}
+
+function placePlayerForArea() {
+  const starts = {
+    quiapo: { x: 100, y: 410 },
+    binondo: { x: 110, y: 400 },
+    intramuros: { x: 100, y: 410 },
+    rizal: { x: 110, y: 410 },
+    bay: { x: 520, y: 410 }
+  };
+  game.player.x = starts[game.area].x;
+  game.player.y = starts[game.area].y;
+}
+
+function travelTo(target) {
+  if (game.ended) return;
+  game.area = target;
+  placePlayerForArea();
+  renderMap();
+  renderTravel();
+  updateHud();
+  setDialogue('Narrator', `Liam heads to ${areas[target].name}. ${areas[target].description}`);
+}
+
+function cycleLocation(dir) {
+  if (game.ended) return;
+  const order = ['quiapo', 'binondo', 'intramuros', 'rizal', 'bay'];
+  let idx = order.indexOf(game.area);
+  idx = (idx + dir + order.length) % order.length;
+  travelTo(order[idx]);
+}
+
+function resetGame() {
+  game = initialGame();
+  endingBoxEl.style.display = 'none';
+  setDialogue('Narrator', 'Liam arrives in Manila with an old family photo and a message that Lola was moving around the city before meeting him. He decides to start in Quiapo.');
+  renderInventory();
+  renderMap();
+  renderTravel();
+  updateHud();
+  placePlayerForArea();
+}
+
+function drawBackground() {
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#7fd2ff');
+  sky.addColorStop(1, '#bcecff');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.beginPath(); ctx.arc(550, 78, 36, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(130, 95, 28, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(168, 96, 24, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = areas[game.area].color;
+  ctx.fillRect(0, 180, W, H - 180);
+}
+
+function drawQuiapo() {
+  ctx.fillStyle = '#c8b08b'; ctx.fillRect(70, 250, 520, 180);
+  drawStall(110, 170, '#ff8f8f');
+  drawStall(280, 160, '#ffd66e');
+  drawStall(450, 178, '#8fdcff');
+  drawChurch(250, 66);
+}
+function drawBinondo() {
+  ctx.fillStyle = '#c7b38c'; ctx.fillRect(60, 250, 530, 180);
+  drawArch(290, 120);
+  drawShop(110, 170, '#d97070');
+  drawShop(430, 175, '#e7a44f');
+}
+function drawIntramuros() {
+  ctx.fillStyle = '#c6ad87'; ctx.fillRect(70, 250, 520, 180);
+  drawWall(80, 120);
+  drawBench(160, 320);
+  drawBench(430, 320);
+}
+function drawRizal() {
+  ctx.fillStyle = '#6cbc7a'; ctx.fillRect(0, 250, W, 180);
+  drawBandstand(320, 120);
+  drawMonument(110, 190);
+  drawTree(520, 210);
+}
+function drawBay() {
+  ctx.fillStyle = '#4ca0db'; ctx.fillRect(0, 250, W, 220);
+  ctx.fillStyle = '#b5946c'; ctx.fillRect(0, 430, W, 110);
+  drawSeawall(80, 360);
+  drawBoat(430, 280);
+  drawLamp(120, 210);
+}
+
+function drawAreaDetails() {
+  if (game.area === 'quiapo') drawQuiapo();
+  if (game.area === 'binondo') drawBinondo();
+  if (game.area === 'intramuros') drawIntramuros();
+  if (game.area === 'rizal') drawRizal();
+  if (game.area === 'bay') drawBay();
+}
+
+function drawStall(x, y, cloth) {
+  ctx.fillStyle = '#7f5131'; ctx.fillRect(x, y + 28, 90, 12); ctx.fillRect(x + 8, y + 40, 8, 45); ctx.fillRect(x + 74, y + 40, 8, 45); ctx.fillStyle = cloth; ctx.fillRect(x - 4, y, 98, 28);
+}
+function drawChurch(x, y) {
+  ctx.fillStyle = '#efe5d1'; ctx.fillRect(x, y, 150, 120);
+  ctx.fillStyle = '#7d4d32'; ctx.beginPath(); ctx.moveTo(x - 10, y); ctx.lineTo(x + 75, y - 58); ctx.lineTo(x + 160, y); ctx.fill();
+  ctx.fillStyle = '#6f4125'; ctx.fillRect(x + 58, y + 58, 34, 62);
+}
+function drawArch(x, y) {
+  ctx.fillStyle = '#d8c4a0'; ctx.fillRect(x - 70, y, 140, 26); ctx.fillRect(x - 60, y + 20, 22, 90); ctx.fillRect(x + 38, y + 20, 22, 90);
+}
+function drawShop(x, y, color) {
+  ctx.fillStyle = color; ctx.fillRect(x, y, 100, 84); ctx.fillStyle = '#704627'; ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x + 50, y - 36); ctx.lineTo(x + 108, y); ctx.fill();
+}
+function drawWall(x, y) {
+  ctx.fillStyle = '#baa283'; ctx.fillRect(x, y, 500, 100); ctx.fillStyle = '#8b755f'; for (let i = 0; i < 9; i++) ctx.fillRect(x + i * 54, y - 12, 30, 18);
+}
+function drawBench(x, y) {
+  ctx.fillStyle = '#7c5437'; ctx.fillRect(x, y, 62, 12); ctx.fillRect(x + 6, y + 12, 8, 26); ctx.fillRect(x + 48, y + 12, 8, 26);
+}
+function drawBandstand(x, y) {
+  ctx.fillStyle = '#d9d1c2'; ctx.fillRect(x - 55, y + 40, 110, 18); ctx.fillRect(x - 48, y + 12, 8, 46); ctx.fillRect(x + 40, y + 12, 8, 46); ctx.fillStyle = '#b15b5b'; ctx.beginPath(); ctx.moveTo(x - 65, y + 12); ctx.lineTo(x, y - 26); ctx.lineTo(x + 65, y + 12); ctx.fill();
+}
+function drawMonument(x, y) {
+  ctx.fillStyle = '#cdd5df'; ctx.fillRect(x, y, 26, 78); ctx.fillStyle = '#87909c'; ctx.fillRect(x - 10, y + 78, 46, 18);
+}
+function drawTree(x, y) {
+  ctx.fillStyle = '#6e482d'; ctx.fillRect(x, y, 16, 52); ctx.fillStyle = '#3f8a52'; ctx.beginPath(); ctx.arc(x + 8, y - 16, 34, 0, Math.PI * 2); ctx.fill();
+}
+function drawSeawall(x, y) {
+  ctx.fillStyle = '#d0c4b2'; ctx.fillRect(x, y, 480, 26);
+}
+function drawBoat(x, y) {
+  ctx.fillStyle = '#6f4530'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 70, y); ctx.lineTo(x + 56, y + 24); ctx.lineTo(x + 14, y + 24); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(x + 32, y); ctx.lineTo(x + 32, y - 62); ctx.lineTo(x + 68, y - 14); ctx.fill();
+}
+function drawLamp(x, y) {
+  ctx.fillStyle = '#5f6977'; ctx.fillRect(x, y, 8, 100); ctx.fillStyle = '#ffd66e'; ctx.beginPath(); ctx.arc(x + 4, y - 6, 16, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawNPC(npc) {
+  if (npc.area !== game.area) return;
+  ctx.save(); ctx.translate(npc.x, npc.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(0, 18, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#f0fbff'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(0, -18, 10, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -2); ctx.lineTo(-12, 8); ctx.moveTo(0, -2); ctx.lineTo(12, 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 14); ctx.lineTo(-10, 30); ctx.moveTo(0, 14); ctx.lineTo(10, 30); ctx.stroke();
+  ctx.fillStyle = '#ffd66e'; ctx.font = '12px Arial'; ctx.textAlign = 'center'; ctx.fillText(npc.name, 0, -34);
+  ctx.restore();
+}
+function drawPlayer() {
+  const p = game.player;
+  ctx.save(); ctx.translate(p.x, p.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(0, 18, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#8fdcff'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(0, -18, 10, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -2); ctx.lineTo(-12, 8); ctx.moveTo(0, -2); ctx.lineTo(12, 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 14); ctx.lineTo(-10, 30); ctx.moveTo(0, 14); ctx.lineTo(10, 30); ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.font = '12px Arial'; ctx.textAlign = 'center'; ctx.fillText('Liam', 0, -34);
+  ctx.restore();
+}
+
+function drawGoalMarker() {
+  if (game.area !== 'rizal' || game.cluesFound.length < 4 || game.ended) return;
+  const x = 320, y = 168;
+  const pulse = 10 + Math.sin(Date.now() * 0.006) * 2;
+  ctx.fillStyle = 'rgba(255,214,110,0.28)'; ctx.beginPath(); ctx.arc(x, y, pulse + 8, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#ffd66e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, pulse, 0, Math.PI * 2); ctx.stroke();
+}
+
+function draw() {
+  drawBackground();
+  drawAreaDetails();
+  drawGoalMarker();
+  game.npcs.forEach(drawNPC);
+  drawPlayer();
+}
+
+function within(a, b, dist) {
+  const dx = a.x - b.x, dy = a.y - b.y;
+  return Math.sqrt(dx*dx + dy*dy) <= dist;
+}
+
+function interact() {
+  if (game.ended) return;
+  const p = game.player;
+  const npc = game.npcs.find(n => n.area === game.area && within(p, n, 54));
+  if (npc) {
+    game.talks += 1;
+    if (!npc.talked && npc.clue) {
+      npc.talked = true;
+      if (!game.cluesFound.includes(npc.clue)) game.cluesFound.push(npc.clue);
+      setDialogue(npc.name, npc.text);
+    } else {
+      setDialogue(npc.name, npc.text.includes('already') ? npc.text : npc.text + ' I already told you what I know.');
+    }
+    renderInventory(); updateHud(); renderTravel();
+    return;
+  }
+
+  if (game.area === 'rizal' && game.cluesFound.length >= 4 && within(p, {x:320,y:168}, 58)) {
+    finishGame();
+    return;
+  }
+
+  setDialogue('Narrator', 'Liam pauses and looks around. The next useful step is probably another conversation or a quick trip to the next Manila location.');
+}
+
+function finishGame() {
+  game.ended = true;
+  endingBoxEl.style.display = 'block';
+  endingBoxEl.className = 'ending good';
+  endingBoxEl.textContent = 'Liam reaches the old bandstand in Rizal Park and finds Lola waiting with a paper bag of warm snacks, exactly where the family photo suggested. She smiles, says she knew he would piece the clues together, and pulls him into a long hug.';
+  setDialogue('Lola', 'Ay, Liam! You remembered the meeting place. Manila is noisy, but family still knows how to find each other.');
+  goalValueEl.textContent = 'Found Lola';
+}
+
+function update() {
+  if (game.ended) return;
+  const p = game.player;
+  let dx = 0, dy = 0;
+  if (keys['arrowleft'] || keys['a']) dx -= 1;
+  if (keys['arrowright'] || keys['d']) dx += 1;
+  if (keys['arrowup'] || keys['w']) dy -= 1;
+  if (keys['arrowdown'] || keys['s']) dy += 1;
+  if (dx || dy) {
+    const len = Math.hypot(dx, dy) || 1;
+    p.x += dx / len * playerSpeed;
+    p.y += dy / len * playerSpeed;
+  }
+  p.x = Math.max(24, Math.min(W - 24, p.x));
+  p.y = Math.max(70, Math.min(H - 34, p.y));
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+window.addEventListener('keydown', (e) => {
+  keys[e.key.toLowerCase()] = true;
+  if (['arrowleft','arrowright','arrowup','arrowdown','a','d','w','s','e','enter','q','r'].includes(e.key.toLowerCase())) e.preventDefault();
+  if (e.key.toLowerCase() === 'e' || e.key === 'Enter') interact();
+  if (e.key.toLowerCase() === 'q') cycleLocation(-1);
+  if (e.key.toLowerCase() === 'r') cycleLocation(1);
+}, { passive: false });
+window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+restartBtn.addEventListener('click', resetGame);
+hintBtn.addEventListener('click', () => {
+  const hints = [
+    'Start in Quiapo, then move through Binondo and Intramuros. Those clues chain together cleanly.',
+    'The Bay clue helps confirm the final memory, but Rizal Park is the actual reunion point.',
+    'You do not need to manually hunt for exits anymore. Use the travel buttons on the right.',
+    'Once all four keepsakes are collected, go straight to Rizal Park and inspect the bandstand.'
+  ];
+  setDialogue('Hint', hints[game.hintIndex % hints.length]);
+  game.hintIndex += 1;
+});
+
+resetGame();
+loop();
+</script>
+</body>
+</html>
